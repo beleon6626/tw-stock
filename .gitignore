@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+.env
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# 大型資料檔（本地測試用，不上傳）
+# 如果想把歷史資料也放上去，把這幾行刪掉
+# *.json
+
+# pip log
+pip-log.txt

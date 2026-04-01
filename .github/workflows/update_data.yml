@@ -1,0 +1,74 @@
+name: 每日更新台股籌碼資料
+
+on:
+  # 台灣時間每天 22:00（UTC 14:00），週一到週五收盤後執行
+  schedule:
+    - cron: '0 14 * * 1-5'
+
+  # 也可以手動在 GitHub Actions 頁面觸發
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '執行模式'
+        required: false
+        default: 'update'
+        type: choice
+        options:
+          - update   # 一般更新（近 5 日）
+          - init     # 初始化（近 30 日，第一次使用時選這個）
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write   # 允許 push 回 repo
+
+    steps:
+      # 1. 拉取程式碼
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. 設定 Python
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+
+      # 3. 安裝依賴套件
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      # 4. 執行資料抓取
+      - name: Run data update
+        env:
+          TZ: Asia/Taipei
+          # 如果有 FinMind 帳號，在 GitHub Repo → Settings → Secrets 設定
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: |
+          if [ "${{ github.event.inputs.mode }}" = "init" ]; then
+            python scripts/run_all.py --init
+          else
+            python scripts/run_all.py
+          fi
+
+      # 5. 提交並推送更新後的 JSON 檔
+      - name: Commit and push JSON files
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 只 add JSON 資料檔，不動 index.html 等前端檔案
+          git add *.json
+
+          # 有變更才 commit（避免空 commit）
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "data: 自動更新 $(date '+%Y-%m-%d %H:%M') (Taiwan)"
+            git push
+          fi
