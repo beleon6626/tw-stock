@@ -48,6 +48,13 @@ def fetch_one_stock(stock_id: str, exchange: str, period: str = "4mo") -> list |
         df.index = pd.to_datetime(df.index).tz_localize(None).strftime("%Y-%m-%d")
         df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
 
+        # 過濾 NaN 收盤價（yfinance 最新一天可能尚未收盤）
+        df = df[df["Close"].notna() & (df["Close"] > 0)].copy()
+
+        if df.empty:
+            print(f"    {ticker_sym}: 過濾後無資料")
+            return None
+
         records = []
         for date_str, row in df.iterrows():
             vol_lots = int(row["Volume"] // 1000) if row["Volume"] > 0 else 0

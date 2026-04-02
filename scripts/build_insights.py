@@ -70,9 +70,9 @@ def build_insights():
         r5   = records[-5:]    # 最後 5 日
         r10  = records[-10:]   # 最後 10 日
 
-        vol_1d  = max(avg_field(r1,  "volume"), 1)
-        vol_5d  = max(avg_field(r5,  "volume"), 1)
-        vol_10d = max(avg_field(r10, "volume"), 1)
+        vol_1d  = avg_field(r1,  "volume")
+        vol_5d  = avg_field(r5,  "volume")
+        vol_10d = avg_field(r10, "volume")
 
         stock_stats.append({
             "stock_id":    sid,
@@ -151,13 +151,6 @@ def build_insights():
 
     # ── Newcomers：今日進榜但近 10 日沒上榜 ──────────────────────────────
 
-    top30_today = {
-        s["stock_id"]
-        for s in stock_stats
-        if s["foreign_1d"] > 0
-    }[:30]  # 取前 30
-
-    # 實際上要用 insights 的排名清單
     top30_ids = {s["stock_id"] for s in insights["foreign_ratio_ranking"][:30]}
 
     # 判斷「近 10 日是否曾出現在前列」：用 10 日累計買超量判斷活躍度
