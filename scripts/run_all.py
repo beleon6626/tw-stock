@@ -61,7 +61,7 @@ def main():
     steps = [
         ("1/6  三大法人買賣超 (TWSE T86)",    update_data,      {"days_back": days_back}),
         ("2/6  個股 K 線 (yfinance)",          update_klines,    {}),
-        ("3/6  大盤資料 (TWSE / TAIFEX)",      update_market,    {}),
+        ("3/6  大盤資料 (TWSE / TAIFEX)",      update_market,    {"days_back": days_back}),
         ("4/6  VIX 恐慌指數 (Yahoo Finance)", update_vix,       {}),
         ("5/6  ETF 成分股 (FinMind)",          update_etfs,      {}),
         ("6/6  建立排行榜 / newcomers",        build_insights,   {}),

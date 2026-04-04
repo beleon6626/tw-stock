@@ -351,13 +351,22 @@ def _compute_retail_from_total(data: list):
 # 合計列名稱：「加權平均整戶維持率」或最後一列
 # ────────────────────────────────────────────────────────────────────────────
 
-def fetch_margin_ratio():
-    print("  [5/5] 融資維持率...")
+def fetch_margin_ratio(days_back: int = 5):
+    """抓取融資餘額（億元）— 改用 TWSE rwd API 的 tables 格式。"""
+    print("  [5/5] 融資餘額...")
 
-    twse_ratio = None
+    existing = load_json_dict(MARGIN_FILE) or {"TWSE": [], "TPEX": []}
+    twse_map = {r["date"]: r for r in existing.get("TWSE", [])}
 
-    # 嘗試最近幾個交易日（今天可能還沒收盤資料）
-    for date_str in get_recent_trading_dates(3):
+    # 回填多日（init 模式 days_back=30）
+    fetch_dates = get_recent_trading_dates(days_back + 2)   # 多抓幾天確保足夠
+
+    for date_str in fetch_dates:
+        # 已有資料就跳過（除非是最新 2 天）
+        if date_str in twse_map and date_str < fetch_dates[1]:
+            continue
+
+        twse_value = None
         url    = "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN"
         params = {"date": date_str, "selectType": "MS", "response": "json"}
         try:
@@ -365,72 +374,62 @@ def fetch_margin_ratio():
             resp.raise_for_status()
             j = resp.json()
 
-            if j.get("stat") != "OK" or not j.get("data"):
+            if j.get("stat") != "OK":
                 time.sleep(TWSE_DELAY)
                 continue
 
-            fields = j.get("fields", [])
-            # 找「整戶維持率」或「維持率」的欄位索引
-            ratio_idx = None
-            for i, f in enumerate(fields):
-                if "維持率" in str(f):
-                    ratio_idx = i
+            tables = j.get("tables") or []
+            table0 = tables[0] if tables else {}
+            rows   = table0.get("data") or j.get("data") or []
+            fields = table0.get("fields") or j.get("fields") or []
+
+            if not rows:
+                time.sleep(TWSE_DELAY)
+                continue
+
+            try:
+                today_idx = next(i for i, f in enumerate(fields) if "今日餘額" in str(f))
+            except StopIteration:
+                today_idx = len(fields) - 1
+
+            for row in rows:
+                item = str(row[0]) if row else ""
+                if "融資金額" in item:
+                    try:
+                        val_qian = float(str(row[today_idx]).replace(",", ""))
+                        twse_value = round(val_qian / 10000, 1)
+                        twse_map[date_str] = {"date": date_str, "ratio": twse_value}
+                        print(f"    TWSE 融資餘額: {twse_value} 億元 ({date_str})")
+                    except (ValueError, IndexError):
+                        pass
                     break
 
-            # 找合計列（最後一列通常含「加權平均」）
-            for row in reversed(j["data"]):
-                row_text = " ".join(str(c) for c in row)
-                if "加權" in row_text or "平均" in row_text or "合計" in row_text:
-                    # 從指定欄或遍歷找合理數值
-                    candidates = [row[ratio_idx]] if ratio_idx is not None else row
-                    for cell in candidates:
-                        try:
-                            v = float(str(cell).replace(",", ""))
-                            if 100 < v < 500:
-                                twse_ratio = v
-                                break
-                        except (ValueError, TypeError):
-                            continue
-                    if twse_ratio:
-                        break
-
-            if twse_ratio:
-                print(f"    TWSE 融資維持率: {twse_ratio}% ({date_str})")
-                break
-
         except Exception as e:
-            print(f"    TWSE 融資維持率錯誤 ({date_str}): {e}")
+            print(f"    TWSE 融資餘額錯誤 ({date_str}): {e}")
 
         time.sleep(TWSE_DELAY)
 
-    # 寫入
-    existing = load_json_dict(MARGIN_FILE) or {"TWSE": [], "TPEX": []}
-
-    if twse_ratio is not None:
-        twse_map = {r["date"]: r for r in existing.get("TWSE", [])}
-        twse_map[TODAY] = {"date": TODAY, "ratio": twse_ratio}
-        existing["TWSE"] = sorted(twse_map.values(), key=lambda x: x["date"])[-HISTORY_DAYS:]
-    else:
-        print("    TWSE 融資維持率：無法取得，保留舊值")
-
+    # 寫入（假的 for 迴圈已內嵌，這裡直接存檔）
+    existing["TWSE"] = sorted(twse_map.values(), key=lambda x: x["date"])[-HISTORY_DAYS:]
     with open(MARGIN_FILE, "w", encoding="utf-8") as f:
         json.dump(existing, f, ensure_ascii=False, separators=(",", ":"))
 
     twse_n = len(existing.get("TWSE", []))
-    print(f"    融資維持率：TWSE {twse_n} 筆")
+    print(f"    融資餘額：TWSE {twse_n} 筆")
+
 
 
 # ────────────────────────────────────────────────────────────────────────────
 # 主流程
 # ────────────────────────────────────────────────────────────────────────────
 
-def update_market():
+def update_market(days_back: int = 5):
     print("[fetch_market] 開始抓取大盤資料...")
     fetch_taiex_kline()
     fetch_futures_oi()
     compute_foreign_spot()
     fetch_retail_ratio()
-    fetch_margin_ratio()
+    fetch_margin_ratio(days_back=days_back)
     print("[fetch_market] 完成")
 
 
