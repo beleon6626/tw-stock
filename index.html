@@ -805,7 +805,8 @@ async function fetchKlineDynamic(stockId) {
   const tries = exch === 'TWO' ? ['TWO', 'TW'] : ['TW', 'TWO'];
   for (const suffix of tries) {
     try {
-      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${stockId}.${suffix}?interval=1d&range=6mo`;
+      const yahooUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${stockId}.${suffix}?interval=1d&range=6mo`;
+      const url = `https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`;
       const r = await fetch(url);
       if (!r.ok) continue;
       const j = await r.json();
