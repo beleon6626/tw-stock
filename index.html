@@ -4,63 +4,92 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>籌碼戰情室</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', sans-serif; }
+    body { font-family: 'Inter', -apple-system, 'Noto Sans TC', sans-serif; background: #eef2f7; }
 
-    .tab-btn { transition: all 0.15s; }
-    .tab-btn.active { background-color: #1e3a8a; color: #fff; }
+    /* ── Tab Nav (underline style) ── */
+    .tab-btn {
+      padding: 13px 20px; font-size: 14px; font-weight: 500; color: #64748b;
+      border-bottom: 2.5px solid transparent; border-top: none; border-left: none; border-right: none;
+      transition: color .15s, border-color .15s; white-space: nowrap; background: none; cursor: pointer;
+    }
+    .tab-btn:hover { color: #1d4ed8; }
+    .tab-btn.active { color: #1d4ed8; border-bottom-color: #1d4ed8; font-weight: 600; }
 
-    .period-btn.active, .investor-btn.active, .count-btn.active,
+    /* ── Segmented Controls ── */
+    .seg-group { display: flex; background: #f1f5f9; border-radius: 10px; padding: 3px; gap: 2px; }
+    .seg-btn {
+      padding: 5px 14px; border-radius: 7px; font-size: 13px; font-weight: 500;
+      color: #64748b; border: none; background: transparent; cursor: pointer; transition: all .15s;
+    }
+    .seg-btn:hover { color: #334155; }
+    .investor-btn.active, .period-btn.active, .count-btn.active,
     .chart-period-btn.active, .market-period-btn.active, .etf-sort-btn.active {
-      background-color: #1e3a8a !important;
-      color: #fff !important;
-      border-color: #1e3a8a !important;
+      background: #fff !important; color: #1d4ed8 !important; font-weight: 600 !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,.04) !important; border: none !important;
     }
 
+    /* ── Rank Rows ── */
+    .rank-row { display: flex; align-items: center; padding: 10px 16px; cursor: pointer; transition: background .1s; }
+    .rank-row:hover { background: #f8fafc; }
+    .rank-row + .rank-row { border-top: 1px solid #f1f5f9; }
+    .rank-medal {
+      width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-right: 12px;
+    }
+    .rm-1 { background: linear-gradient(135deg,#fcd34d,#f59e0b); color: #78350f; }
+    .rm-2 { background: linear-gradient(135deg,#e2e8f0,#94a3b8); color: #374151; }
+    .rm-3 { background: linear-gradient(135deg,#fdba74,#f97316); color: #7c2d12; }
+    .rm-n { background: #f1f5f9; color: #94a3b8; }
+
+    /* ── Autocomplete ── */
     .autocomplete-list {
-      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-      background: #fff; border: 1px solid #e2e8f0;
-      border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.12);
-      max-height: 280px; overflow-y: auto; z-index: 60;
+      position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+      box-shadow: 0 12px 36px rgba(0,0,0,.13); max-height: 280px; overflow-y: auto; z-index: 60;
     }
-    .autocomplete-item { padding: 8px 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+    .autocomplete-item { padding: 9px 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background .1s; }
     .autocomplete-item:hover { background: #eff6ff; }
-    .autocomplete-item:first-child { border-radius: 10px 10px 0 0; }
-    .autocomplete-item:last-child  { border-radius: 0 0 10px 10px; }
+    .autocomplete-item:first-child { border-radius: 14px 14px 0 0; }
+    .autocomplete-item:last-child  { border-radius: 0 0 14px 14px; }
 
+    /* ── Badges ── */
     .badge-new { animation: badge-pulse 2s infinite; }
-    @keyframes badge-pulse { 0%,100%{opacity:1} 50%{opacity:.65} }
+    @keyframes badge-pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
 
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: #f1f5f9; }
-    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
     #toast { transition: opacity .3s; pointer-events: none; }
-    .rank-row:hover { background: #f8fafc; cursor: pointer; }
 
-    /* 全頁 Loading 遮罩 */
+    /* ── Loading ── */
     #loadingOverlay {
-      position: fixed; inset: 0; background: #0f172a;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      z-index: 100; transition: opacity .4s;
+      position: fixed; inset: 0;
+      background: linear-gradient(135deg, #0c1445 0%, #0f2460 50%, #0c1445 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 100; transition: opacity .45s;
     }
     #loadingOverlay.fade-out { opacity: 0; pointer-events: none; }
     .loader-ring {
-      width: 52px; height: 52px;
-      border: 4px solid #334155;
-      border-top-color: #60a5fa;
-      border-radius: 50%;
-      animation: spin .9s linear infinite;
+      width: 48px; height: 48px;
+      border: 3px solid rgba(96,165,250,.2); border-top-color: #60a5fa;
+      border-radius: 50%; animation: spin .85s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Market stat card ── */
+    .mstat-card { background: #f8fafc; border-radius: 12px; padding: 14px 16px; border-left: 3px solid #e2e8f0; }
   </style>
 </head>
-<body class="bg-slate-100 min-h-screen">
+<body class="min-h-screen" style="background:#eef2f7">
 
 <!-- ═══════════ LOADING OVERLAY ═══════════ -->
 <div id="loadingOverlay">
@@ -70,90 +99,119 @@
 </div>
 
 <!-- ═══════════ HEADER ═══════════ -->
-<header class="bg-blue-950 text-white shadow-xl sticky top-0 z-40">
-  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
-    <h1 class="text-lg font-extrabold tracking-widest text-white">籌碼戰情室</h1>
-    <span class="text-blue-400 text-xs hidden sm:block">Taiwan Stock Chip Analysis</span>
-    <div class="ml-auto flex items-center gap-3 text-sm">
-      <!-- VIX -->
+<header class="sticky top-0 z-40 text-white shadow-xl"
+  style="background:linear-gradient(100deg,#0c1445 0%,#0f2460 50%,#0c1445 100%)">
+  <div class="max-w-7xl mx-auto px-5 h-14 flex items-center gap-4">
+    <!-- Logo -->
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black shrink-0"
+        style="background:linear-gradient(135deg,#3b82f6,#6366f1)">籌</div>
+      <span class="font-extrabold tracking-wider text-white text-base">籌碼戰情室</span>
+      <span class="text-blue-400 text-xs hidden sm:block opacity-70">Taiwan Stock Chip Analysis</span>
+    </div>
+    <!-- Right indicators -->
+    <div class="ml-auto flex items-center gap-2 text-sm">
       <button onclick="openVixModal()" id="vixBtn"
-        class="flex items-center gap-1.5 bg-blue-900 hover:bg-blue-800 px-3 py-1.5 rounded-lg transition">
-        <span class="text-blue-300 text-xs">VIX</span>
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition"
+        style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12)">
+        <span class="text-blue-300 text-xs font-medium">VIX</span>
         <span class="font-bold text-yellow-300 text-sm" id="vixVal">–</span>
-        <span class="bg-blue-700 text-blue-100 px-1.5 py-0.5 rounded text-xs" id="vixLabel">–</span>
+        <span class="text-xs px-1.5 py-0.5 rounded font-semibold" id="vixLabel"
+          style="background:rgba(255,255,255,0.15)">–</span>
       </button>
-      <!-- Settlement -->
-      <div class="bg-blue-900 px-3 py-1.5 rounded-lg text-xs flex gap-1.5">
+      <div class="px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"
+        style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12)">
         <span class="text-blue-400">結算</span>
         <span class="font-bold text-yellow-300" id="settleDays">–</span>
       </div>
-      <div class="text-blue-400 text-xs hidden md:block" id="todayDate"></div>
+      <div class="text-slate-400 text-xs hidden md:block font-mono" id="todayDate"></div>
     </div>
   </div>
 </header>
 
 <!-- ═══════════ TAB NAV ═══════════ -->
-<nav class="bg-white border-b shadow-sm sticky top-14 z-30">
-  <div class="max-w-7xl mx-auto px-4">
-    <div class="flex gap-1 py-2">
-      <button class="tab-btn active px-5 py-2 rounded-lg text-sm font-semibold" data-tab="insights">觀察清單</button>
-      <button class="tab-btn px-5 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100" data-tab="stock">個股查詢</button>
-      <button class="tab-btn px-5 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100" data-tab="market">大盤 K 線</button>
-      <button class="tab-btn px-5 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100" data-tab="etf">ETF 追蹤</button>
+<nav class="bg-white border-b border-slate-200 sticky z-30" style="top:56px">
+  <div class="max-w-7xl mx-auto px-5">
+    <div class="flex -mb-px">
+      <button class="tab-btn active" data-tab="insights">觀察清單</button>
+      <button class="tab-btn" data-tab="stock">個股查詢</button>
+      <button class="tab-btn" data-tab="market">大盤 K 線</button>
+      <button class="tab-btn" data-tab="etf">ETF 追蹤</button>
     </div>
   </div>
 </nav>
 
 <!-- ═══════════ MAIN ═══════════ -->
-<main class="max-w-7xl mx-auto px-4 py-5">
+<main class="max-w-7xl mx-auto px-5 py-6">
 
   <!-- ══ TAB 1: 觀察清單 ══ -->
   <div id="tab-insights" class="tab-panel">
-    <div class="bg-white rounded-xl shadow-sm p-4 mb-5 flex flex-wrap gap-4 items-center">
-      <div class="flex items-center gap-2">
-        <span class="text-xs text-gray-500">法人</span>
-        <button class="investor-btn active border px-4 py-1.5 rounded-lg text-sm font-medium border-blue-900" data-inv="foreign">外資</button>
-        <button class="investor-btn border px-4 py-1.5 rounded-lg text-sm font-medium border-gray-300 text-gray-600 hover:border-blue-400" data-inv="invest">投信</button>
+    <!-- Toolbar -->
+    <div class="bg-white rounded-2xl mb-5 px-5 py-4 flex flex-wrap gap-4 items-center"
+      style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-slate-400 font-medium uppercase tracking-wide">法人</span>
+        <div class="seg-group">
+          <button class="investor-btn seg-btn active" data-inv="foreign">外資</button>
+          <button class="investor-btn seg-btn" data-inv="invest">投信</button>
+        </div>
       </div>
-      <div class="flex items-center gap-2">
-        <span class="text-xs text-gray-500">期間</span>
-        <button class="period-btn active border px-4 py-1.5 rounded-lg text-sm font-medium border-blue-900" data-period="1d">1日</button>
-        <button class="period-btn border px-4 py-1.5 rounded-lg text-sm font-medium border-gray-300 text-gray-600 hover:border-blue-400" data-period="5d">5日</button>
-        <button class="period-btn border px-4 py-1.5 rounded-lg text-sm font-medium border-gray-300 text-gray-600 hover:border-blue-400" data-period="10d">10日</button>
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-slate-400 font-medium uppercase tracking-wide">期間</span>
+        <div class="seg-group">
+          <button class="period-btn seg-btn active" data-period="1d">1日</button>
+          <button class="period-btn seg-btn" data-period="5d">5日</button>
+          <button class="period-btn seg-btn" data-period="10d">10日</button>
+        </div>
       </div>
-      <div class="ml-auto flex items-center gap-2">
-        <span class="text-xs text-gray-500">顯示</span>
-        <button class="count-btn active border px-3 py-1 rounded text-sm font-medium border-blue-900" data-cnt="10">Top 10</button>
-        <button class="count-btn border px-3 py-1 rounded text-sm border-gray-300 text-gray-600 hover:border-blue-400" data-cnt="15">Top 15</button>
-        <button class="count-btn border px-3 py-1 rounded text-sm border-gray-300 text-gray-600 hover:border-blue-400" data-cnt="20">Top 20</button>
+      <div class="ml-auto flex items-center gap-3">
+        <span class="text-xs text-slate-400 font-medium uppercase tracking-wide">顯示</span>
+        <div class="seg-group">
+          <button class="count-btn seg-btn active" data-cnt="10">Top 10</button>
+          <button class="count-btn seg-btn" data-cnt="15">Top 15</button>
+          <button class="count-btn seg-btn" data-cnt="20">Top 20</button>
+        </div>
       </div>
     </div>
 
+    <!-- Ranking cards -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-      <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-        <div class="bg-gradient-to-r from-red-500 to-rose-600 px-4 py-3">
-          <h3 class="text-white font-bold text-sm" id="buyTitle">外資 日 買超排行</h3>
+      <div class="bg-white rounded-2xl overflow-hidden"
+        style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+        <div class="px-5 py-3.5 flex items-center gap-2"
+          style="background:linear-gradient(100deg,#be123c,#e11d48)">
+          <span class="text-white text-base">▲</span>
+          <h3 class="text-white font-bold text-sm tracking-wide" id="buyTitle">外資 日 買超排行</h3>
         </div>
         <div id="buyTable"></div>
       </div>
-      <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-        <div class="bg-gradient-to-r from-green-600 to-emerald-700 px-4 py-3">
-          <h3 class="text-white font-bold text-sm" id="sellTitle">外資 日 賣超排行</h3>
+      <div class="bg-white rounded-2xl overflow-hidden"
+        style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+        <div class="px-5 py-3.5 flex items-center gap-2"
+          style="background:linear-gradient(100deg,#047857,#059669)">
+          <span class="text-white text-base">▼</span>
+          <h3 class="text-white font-bold text-sm tracking-wide" id="sellTitle">外資 日 賣超排行</h3>
         </div>
         <div id="sellTable"></div>
       </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm p-4 mb-5">
-      <h3 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
-        <span class="text-yellow-500 text-base">★</span> 新進榜（近10日首次上榜）
+    <!-- Newcomers -->
+    <div class="bg-white rounded-2xl p-5 mb-5"
+      style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+      <h3 class="font-bold text-slate-700 text-sm mb-3 flex items-center gap-2">
+        <span class="inline-flex w-6 h-6 rounded-full bg-amber-100 items-center justify-center text-amber-500 text-xs">★</span>
+        新進榜 <span class="text-slate-400 font-normal text-xs">近10日首次上榜</span>
       </h3>
       <div id="newcomersList" class="flex flex-wrap gap-2"></div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm p-4">
-      <h3 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
-        <span class="text-base">🔥</span> 爆量股（買超量突破近期高點）
+    <!-- Explosive -->
+    <div class="bg-white rounded-2xl p-5"
+      style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+      <h3 class="font-bold text-slate-700 text-sm mb-3 flex items-center gap-2">
+        <span class="inline-flex w-6 h-6 rounded-full bg-rose-100 items-center justify-center text-rose-500 text-xs">🔥</span>
+        爆量股 <span class="text-slate-400 font-normal text-xs">買超量突破近期高點</span>
       </h3>
       <div id="explosiveList" class="flex flex-wrap gap-2"></div>
     </div>
@@ -161,109 +219,128 @@
 
   <!-- ══ TAB 2: 個股查詢 ══ -->
   <div id="tab-stock" class="tab-panel hidden">
-    <div class="bg-white rounded-xl shadow-sm p-4 mb-5 relative">
+    <!-- Search -->
+    <div class="bg-white rounded-2xl p-4 mb-5 relative"
+      style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
       <div class="relative">
+        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base">🔍</span>
         <input id="searchInput" type="text" placeholder="輸入股票代號或名稱（例：2330 或 台積電）"
-          class="w-full border border-gray-300 rounded-lg px-4 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50"
           autocomplete="off">
-        <button id="searchClear" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 hidden text-lg leading-none">×</button>
+        <button id="searchClear" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 hidden text-xl leading-none">×</button>
         <div id="autocomplete" class="autocomplete-list hidden"></div>
       </div>
     </div>
 
-    <div id="stockEmpty" class="text-center py-24 text-gray-400">
-      <div class="text-7xl mb-4">🔍</div>
-      <p class="text-lg font-medium">請輸入股票代號或名稱查詢</p>
+    <div id="stockEmpty" class="text-center py-28 text-slate-400">
+      <div class="text-6xl mb-4 opacity-30">📊</div>
+      <p class="text-base font-medium">請輸入股票代號或名稱查詢</p>
+      <p class="text-sm mt-1 text-slate-400">支援代號或中文名稱搜尋</p>
     </div>
 
     <div id="stockPanel" class="hidden">
-      <div class="bg-white rounded-xl shadow-sm p-5 mb-4">
-        <div class="flex items-start justify-between flex-wrap gap-3">
+      <!-- Stock header card -->
+      <div class="bg-white rounded-2xl p-5 mb-4 overflow-hidden relative"
+        style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+        <div class="absolute top-0 left-0 right-0 h-1 rounded-t-2xl"
+          style="background:linear-gradient(90deg,#3b82f6,#6366f1)"></div>
+        <div class="flex items-start justify-between flex-wrap gap-3 mt-1">
           <div>
-            <div class="flex items-center gap-3 flex-wrap">
-              <h2 class="text-2xl font-extrabold text-gray-800" id="sName"></h2>
-              <span class="text-gray-400 font-mono" id="sId"></span>
-              <span class="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded font-medium" id="sSector"></span>
+            <div class="flex items-center gap-2.5 flex-wrap">
+              <h2 class="text-2xl font-extrabold text-slate-800" id="sName"></h2>
+              <span class="text-slate-400 font-mono text-sm" id="sId"></span>
+              <span class="bg-blue-50 text-blue-600 border border-blue-100 text-xs px-2.5 py-0.5 rounded-full font-semibold" id="sSector"></span>
             </div>
             <div class="flex items-baseline gap-3 mt-2 flex-wrap">
               <span class="text-3xl font-extrabold" id="sPrice"></span>
-              <span class="text-xl" id="sChg"></span>
-              <span class="text-base" id="sChgPct"></span>
+              <span class="text-lg font-bold" id="sChg"></span>
+              <span class="text-sm font-medium" id="sChgPct"></span>
             </div>
           </div>
-          <button id="watchBtn" onclick="toggleWatch()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50 transition whitespace-nowrap">☆ 加入觀察</button>
+          <button id="watchBtn" onclick="toggleWatch()"
+            class="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium hover:bg-slate-50 transition whitespace-nowrap text-slate-600">☆ 加入觀察</button>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-          <div class="bg-slate-50 rounded-lg p-3 text-center">
-            <div class="text-xs text-gray-500 mb-1">連續</div>
-            <div class="text-lg font-bold" id="statCons"></div>
+          <div class="rounded-xl p-3 text-center" style="background:#f8fafc;border-left:3px solid #e2e8f0">
+            <div class="text-xs text-slate-400 mb-1 font-medium">連續買賣</div>
+            <div class="text-base font-bold" id="statCons"></div>
           </div>
-          <div class="bg-slate-50 rounded-lg p-3 text-center">
-            <div class="text-xs text-gray-500 mb-1">3日累計</div>
-            <div class="text-lg font-bold" id="stat3d"></div>
+          <div class="rounded-xl p-3 text-center" style="background:#f8fafc;border-left:3px solid #e2e8f0">
+            <div class="text-xs text-slate-400 mb-1 font-medium">3日累計</div>
+            <div class="text-base font-bold" id="stat3d"></div>
           </div>
-          <div class="bg-slate-50 rounded-lg p-3 text-center">
-            <div class="text-xs text-gray-500 mb-1">5日累計</div>
-            <div class="text-lg font-bold" id="stat5d"></div>
+          <div class="rounded-xl p-3 text-center" style="background:#f8fafc;border-left:3px solid #e2e8f0">
+            <div class="text-xs text-slate-400 mb-1 font-medium">5日累計</div>
+            <div class="text-base font-bold" id="stat5d"></div>
           </div>
-          <div class="bg-slate-50 rounded-lg p-3 text-center">
-            <div class="text-xs text-gray-500 mb-1">10日累計</div>
-            <div class="text-lg font-bold" id="stat10d"></div>
+          <div class="rounded-xl p-3 text-center" style="background:#f8fafc;border-left:3px solid #e2e8f0">
+            <div class="text-xs text-slate-400 mb-1 font-medium">10日累計</div>
+            <div class="text-base font-bold" id="stat10d"></div>
           </div>
         </div>
       </div>
 
-      <div class="bg-white rounded-xl shadow-sm px-4 py-3 mb-4 flex gap-2 items-center">
-        <span class="text-xs text-gray-500">週期</span>
-        <button class="chart-period-btn active border px-4 py-1.5 rounded text-sm font-medium border-blue-900" data-cp="D">日</button>
-        <button class="chart-period-btn border px-4 py-1.5 rounded text-sm font-medium border-gray-300 text-gray-600 hover:border-blue-400" data-cp="W">週</button>
-        <button class="chart-period-btn border px-4 py-1.5 rounded text-sm font-medium border-gray-300 text-gray-600 hover:border-blue-400" data-cp="M">月</button>
-        <div class="ml-auto flex items-center gap-3 text-xs text-gray-500 flex-wrap">
-          <span class="flex items-center gap-1"><span class="w-4 h-0.5 bg-amber-400 inline-block"></span>MA5</span>
-          <span class="flex items-center gap-1"><span class="w-4 h-0.5 bg-purple-500 inline-block"></span>MA10</span>
-          <span class="flex items-center gap-1"><span class="w-4 h-0.5 bg-blue-500 inline-block"></span>MA20</span>
-          <span class="flex items-center gap-1"><span class="w-4 h-0.5 bg-gray-400 inline-block"></span>MA60</span>
+      <!-- Period toolbar -->
+      <div class="bg-white rounded-2xl px-5 py-3.5 mb-4 flex gap-3 items-center"
+        style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+        <span class="text-xs text-slate-400 font-medium uppercase tracking-wide">週期</span>
+        <div class="seg-group">
+          <button class="chart-period-btn seg-btn active" data-cp="D">日</button>
+          <button class="chart-period-btn seg-btn" data-cp="W">週</button>
+          <button class="chart-period-btn seg-btn" data-cp="M">月</button>
+        </div>
+        <div class="ml-auto flex items-center gap-4 text-xs text-slate-400 flex-wrap">
+          <span class="flex items-center gap-1.5"><span class="w-5 h-0.5 bg-amber-400 inline-block rounded"></span>MA5</span>
+          <span class="flex items-center gap-1.5"><span class="w-5 h-0.5 bg-purple-500 inline-block rounded"></span>MA10</span>
+          <span class="flex items-center gap-1.5"><span class="w-5 h-0.5 bg-blue-500 inline-block rounded"></span>MA20</span>
+          <span class="flex items-center gap-1.5"><span class="w-5 h-0.5 bg-slate-400 inline-block rounded"></span>MA60</span>
         </div>
       </div>
 
-      <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
-        <div class="font-bold text-sm text-gray-700 mb-3">K 線圖</div>
+      <div class="bg-white rounded-2xl p-5 mb-4"
+        style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+        <div class="font-semibold text-sm text-slate-600 mb-3">K 線圖</div>
         <div id="klineChart" style="height:360px"></div>
       </div>
 
-      <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
-        <div class="font-bold text-sm text-gray-700 mb-2 flex items-center gap-3">
+      <div class="bg-white rounded-2xl p-5 mb-4"
+        style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+        <div class="font-semibold text-sm text-slate-600 mb-2 flex items-center gap-3">
           KD 指標 (9)
-          <span class="text-xs text-gray-400 flex items-center gap-2">
-            <span class="flex items-center gap-1"><span class="w-4 h-0.5 bg-amber-400 inline-block"></span>K</span>
-            <span class="flex items-center gap-1"><span class="w-4 h-0.5 bg-blue-500 inline-block"></span>D</span>
+          <span class="text-xs text-slate-400 flex items-center gap-3">
+            <span class="flex items-center gap-1.5"><span class="w-5 h-0.5 bg-amber-400 inline-block rounded"></span>K</span>
+            <span class="flex items-center gap-1.5"><span class="w-5 h-0.5 bg-blue-500 inline-block rounded"></span>D</span>
           </span>
         </div>
         <div id="kdChart" style="height:140px"></div>
       </div>
 
-      <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
-        <div class="font-bold text-sm text-gray-700 mb-3">法人買賣超（張）</div>
+      <div class="bg-white rounded-2xl p-5 mb-4"
+        style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+        <div class="font-semibold text-sm text-slate-600 mb-3">法人買賣超（張）</div>
         <div style="position:relative;height:180px">
           <canvas id="instChart"></canvas>
         </div>
       </div>
 
-      <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-4">
-        <div class="px-4 py-3 border-b bg-slate-50 font-bold text-sm text-gray-700">法人買賣超明細（近30日）</div>
+      <div class="bg-white rounded-2xl overflow-hidden mb-4"
+        style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+        <div class="px-5 py-3.5 border-b border-slate-100 font-semibold text-sm text-slate-600 bg-slate-50">
+          法人買賣超明細（近30日）
+        </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
-              <tr class="text-xs text-gray-500 bg-slate-50 border-b">
-                <th class="px-4 py-2 text-left">日期</th>
-                <th class="px-4 py-2 text-right">外資</th>
-                <th class="px-4 py-2 text-right">投信</th>
-                <th class="px-4 py-2 text-right">自營商</th>
-                <th class="px-4 py-2 text-right">三大法人合計</th>
-                <th class="px-4 py-2 text-right">收盤價</th>
+              <tr class="text-xs text-slate-400 bg-slate-50 border-b border-slate-100">
+                <th class="px-4 py-2.5 text-left font-medium">日期</th>
+                <th class="px-4 py-2.5 text-right font-medium">外資</th>
+                <th class="px-4 py-2.5 text-right font-medium">投信</th>
+                <th class="px-4 py-2.5 text-right font-medium">自營商</th>
+                <th class="px-4 py-2.5 text-right font-medium">三大合計</th>
+                <th class="px-4 py-2.5 text-right font-medium">收盤價</th>
               </tr>
             </thead>
-            <tbody id="instTable" class="divide-y divide-gray-100"></tbody>
+            <tbody id="instTable" class="divide-y divide-slate-50"></tbody>
           </table>
         </div>
       </div>
@@ -272,68 +349,69 @@
 
   <!-- ══ TAB 3: 大盤K線 ══ -->
   <div id="tab-market" class="tab-panel hidden">
-    <div class="bg-white rounded-xl shadow-sm p-4 mb-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
-      <div>
-        <div class="text-xs text-gray-500">加權指數</div>
+    <!-- Summary stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+      <div class="bg-white rounded-2xl p-4" style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04);border-left:3px solid #3b82f6">
+        <div class="text-xs text-slate-400 font-medium mb-1">加權指數</div>
         <div class="text-2xl font-extrabold" id="mTaiexPrice">–</div>
-        <div class="text-xs" id="mTaiexChg">–</div>
+        <div class="text-xs mt-0.5" id="mTaiexChg">–</div>
       </div>
-      <div>
-        <div class="text-xs text-gray-500">外資期貨淨未平倉（口）</div>
+      <div class="bg-white rounded-2xl p-4" style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04);border-left:3px solid #f59e0b">
+        <div class="text-xs text-slate-400 font-medium mb-1">外資期貨淨未平倉（口）</div>
         <div class="text-2xl font-extrabold" id="mFutVal">–</div>
-        <div class="text-xs text-gray-500" id="mFutChgTxt">–</div>
+        <div class="text-xs text-slate-400 mt-0.5" id="mFutChgTxt">–</div>
       </div>
-      <div>
-        <div class="text-xs text-gray-500">散戶多空比</div>
-        <div class="text-2xl font-extrabold" id="mRetailVal">–</div>
-        <div class="text-xs text-gray-500" id="mRetailChgTxt">–</div>
+      <div class="bg-white rounded-2xl p-4" style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04);border-left:3px solid #8b5cf6">
+        <div class="text-xs text-slate-400 font-medium mb-1">散戶多空比</div>
+        <div class="text-2xl font-extrabold text-purple-600" id="mRetailVal">–</div>
+        <div class="text-xs text-slate-400 mt-0.5" id="mRetailChgTxt">–</div>
       </div>
-      <div>
-        <div class="text-xs text-gray-500">融資維持率（TWSE）</div>
-        <div class="text-2xl font-extrabold text-blue-600" id="mMarginVal">–</div>
-        <div class="text-xs text-gray-500">安全區間 &gt; 130%</div>
+      <div class="bg-white rounded-2xl p-4" style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04);border-left:3px solid #10b981">
+        <div class="text-xs text-slate-400 font-medium mb-1">融資維持率（TWSE）</div>
+        <div class="text-2xl font-extrabold text-emerald-600" id="mMarginVal">–</div>
+        <div class="text-xs text-slate-400 mt-0.5">安全區間 &gt; 130%</div>
       </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
+    <div class="bg-white rounded-2xl p-5 mb-4" style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
       <div class="flex items-center justify-between mb-3">
-        <div class="font-bold text-sm text-gray-700">加權指數 K 線</div>
-        <div class="flex gap-2">
-          <button class="market-period-btn active border px-3 py-1 rounded text-xs font-medium border-blue-900" data-mp="D">日</button>
-          <button class="market-period-btn border px-3 py-1 rounded text-xs font-medium border-gray-300 text-gray-600 hover:border-blue-400" data-mp="W">週</button>
+        <div class="font-semibold text-sm text-slate-600">加權指數 K 線</div>
+        <div class="seg-group">
+          <button class="market-period-btn seg-btn active" data-mp="D">日</button>
+          <button class="market-period-btn seg-btn" data-mp="W">週</button>
         </div>
       </div>
       <div id="mKlineChart" style="height:280px"></div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
-      <div class="font-bold text-sm text-gray-700 mb-3">外資期貨淨未平倉口數</div>
+    <div class="bg-white rounded-2xl p-5 mb-4" style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+      <div class="font-semibold text-sm text-slate-600 mb-3">外資期貨淨未平倉口數</div>
       <div id="mFutChart" style="height:150px"></div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
-      <div class="font-bold text-sm text-gray-700 mb-3">外資現貨買賣超（億元）</div>
+    <div class="bg-white rounded-2xl p-5 mb-4" style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+      <div class="font-semibold text-sm text-slate-600 mb-3">外資現貨買賣超（億元）</div>
       <div id="mFundChart" style="height:150px"></div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
-      <div class="font-bold text-sm text-gray-700 mb-3">散戶多空比（%）</div>
+    <div class="bg-white rounded-2xl p-5 mb-4" style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+      <div class="font-semibold text-sm text-slate-600 mb-3">散戶多空比（%）</div>
       <div id="mRetailChart" style="height:150px"></div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm p-4">
-      <div class="font-bold text-sm text-gray-700 mb-3">融資維持率（%）</div>
+    <div class="bg-white rounded-2xl p-5" style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+      <div class="font-semibold text-sm text-slate-600 mb-3">融資維持率（%）</div>
       <div id="mMarginChart" style="height:150px"></div>
     </div>
   </div>
 
   <!-- ══ TAB 4: ETF追蹤 ══ -->
   <div id="tab-etf" class="tab-panel hidden">
-    <div class="bg-white rounded-xl shadow-sm p-4 mb-5">
+    <div class="bg-white rounded-2xl p-5 mb-5" style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
       <div class="flex flex-wrap gap-4 items-center">
         <div class="flex items-center gap-3">
-          <span class="text-xs text-gray-500">ETF</span>
-          <select id="etfSelect" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <span class="text-xs text-slate-400 font-medium uppercase tracking-wide">ETF</span>
+          <select id="etfSelect" class="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="00980A">00980A 元大台灣AI</option>
             <option value="00981A">00981A 富邦台灣科技</option>
             <option value="00982A">00982A 國泰台灣5G</option>
@@ -343,46 +421,50 @@
           </select>
         </div>
         <label class="ml-auto flex items-center gap-2 cursor-pointer">
-          <span class="text-sm text-gray-600">全市場掃描</span>
+          <span class="text-sm text-slate-600 font-medium">全市場掃描</span>
           <input type="checkbox" id="reverseToggle" class="sr-only peer" onchange="toggleReverse()">
-          <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-900 relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+          <div class="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-blue-600 relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
         </label>
       </div>
-      <div id="reversePanel" class="hidden mt-3 pt-3 border-t flex flex-wrap gap-3 items-center">
-        <span class="text-sm text-gray-500">查詢股票</span>
+      <div id="reversePanel" class="hidden mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-3 items-center">
+        <span class="text-sm text-slate-500">查詢股票</span>
         <input id="reverseInput" type="text" placeholder="輸入代號（如 2330）"
-          class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-44">
-        <button onclick="doReverse()" class="bg-blue-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800">查詢</button>
+          class="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 w-44">
+        <button onclick="doReverse()"
+          class="text-white px-5 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition"
+          style="background:linear-gradient(135deg,#1d4ed8,#4f46e5)">查詢</button>
         <div id="reverseResult" class="w-full"></div>
       </div>
     </div>
 
     <div id="etfNormal">
-      <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-        <div class="px-4 py-3 border-b bg-slate-50 flex items-center justify-between flex-wrap gap-2">
-          <h3 class="font-bold text-sm text-gray-700" id="etfTitle">持股清單</h3>
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-gray-500">排序</span>
-            <button class="etf-sort-btn active border px-2 py-1 rounded font-medium border-blue-900" data-es="weight">比重</button>
-            <button class="etf-sort-btn border px-2 py-1 rounded border-gray-300 text-gray-600 hover:border-blue-400" data-es="change1d">1日↕</button>
-            <button class="etf-sort-btn border px-2 py-1 rounded border-gray-300 text-gray-600 hover:border-blue-400" data-es="change10d">10日↕</button>
+      <div class="bg-white rounded-2xl overflow-hidden" style="box-shadow:0 1px 4px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.04)">
+        <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2 bg-slate-50">
+          <h3 class="font-semibold text-sm text-slate-700" id="etfTitle">持股清單</h3>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400">排序</span>
+            <div class="seg-group">
+              <button class="etf-sort-btn seg-btn active" data-es="weight">比重</button>
+              <button class="etf-sort-btn seg-btn" data-es="change1d">1日↕</button>
+              <button class="etf-sort-btn seg-btn" data-es="change10d">10日↕</button>
+            </div>
           </div>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
-              <tr class="text-xs text-gray-500 bg-slate-50 border-b">
-                <th class="px-4 py-2 text-left">股票</th>
-                <th class="px-4 py-2 text-right">持股（張）</th>
-                <th class="px-4 py-2 text-right">比重</th>
-                <th class="px-4 py-2 text-right">10日變化</th>
-                <th class="px-4 py-2 text-right">5日變化</th>
-                <th class="px-4 py-2 text-right">3日變化</th>
-                <th class="px-4 py-2 text-right">1日變化</th>
-                <th class="px-4 py-2 text-center">標記</th>
+              <tr class="text-xs text-slate-400 bg-slate-50 border-b border-slate-100">
+                <th class="px-4 py-2.5 text-left font-medium">股票</th>
+                <th class="px-4 py-2.5 text-right font-medium">持股（張）</th>
+                <th class="px-4 py-2.5 text-right font-medium">比重</th>
+                <th class="px-4 py-2.5 text-right font-medium">10日變化</th>
+                <th class="px-4 py-2.5 text-right font-medium">5日變化</th>
+                <th class="px-4 py-2.5 text-right font-medium">3日變化</th>
+                <th class="px-4 py-2.5 text-right font-medium">1日變化</th>
+                <th class="px-4 py-2.5 text-center font-medium">標記</th>
               </tr>
             </thead>
-            <tbody id="etfBody" class="divide-y divide-gray-100"></tbody>
+            <tbody id="etfBody" class="divide-y divide-slate-50"></tbody>
           </table>
         </div>
       </div>
@@ -392,33 +474,50 @@
 </main>
 
 <!-- ═══════════ TOAST ═══════════ -->
-<div id="toast" class="fixed bottom-6 right-6 z-50 bg-gray-800 text-white text-sm px-4 py-2.5 rounded-xl shadow-xl opacity-0">-</div>
+<div id="toast" class="fixed bottom-6 right-6 z-50 text-white text-sm px-4 py-2.5 rounded-xl shadow-2xl opacity-0"
+  style="background:rgba(15,23,42,0.92);backdrop-filter:blur(8px)">-</div>
 
 <!-- ═══════════ VIX MODAL ═══════════ -->
-<div id="vixModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
-  <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+<div id="vixModal" class="fixed inset-0 z-50 hidden items-center justify-center" style="background:rgba(0,0,0,0.45);backdrop-filter:blur(4px)">
+  <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4" style="box-shadow:0 24px 64px rgba(0,0,0,0.22)">
     <div class="flex justify-between items-center mb-5">
-      <h3 class="font-extrabold text-gray-800">VIX 恐慌指數說明</h3>
-      <button onclick="closeVixModal()" class="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+      <h3 class="font-bold text-slate-800 text-base">VIX 恐慌指數說明</h3>
+      <button onclick="closeVixModal()" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 text-xl leading-none transition">×</button>
     </div>
-    <div class="space-y-3 text-sm">
-      <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-full bg-green-500 shrink-0"></span><strong class="text-green-600 w-14">&lt; 15</strong><span class="text-gray-600">極度樂觀，注意反轉風險</span></div>
-      <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-full bg-blue-500 shrink-0"></span><strong class="text-blue-600 w-14">15 – 25</strong><span class="text-gray-600">正常波動區間</span></div>
-      <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-full bg-orange-500 shrink-0"></span><strong class="text-orange-600 w-14">25 – 35</strong><span class="text-gray-600">市場恐慌，可留意布局機會</span></div>
-      <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-full bg-red-500 shrink-0"></span><strong class="text-red-600 w-14">&gt; 35</strong><span class="text-gray-600">極度恐慌，歷史性買點參考</span></div>
+    <div class="space-y-2.5 text-sm">
+      <div class="flex items-center gap-3 p-2.5 rounded-xl bg-emerald-50">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+        <strong class="text-emerald-700 w-14 shrink-0">&lt; 15</strong>
+        <span class="text-slate-600">極度樂觀，注意反轉風險</span>
+      </div>
+      <div class="flex items-center gap-3 p-2.5 rounded-xl bg-blue-50">
+        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
+        <strong class="text-blue-700 w-14 shrink-0">15 – 25</strong>
+        <span class="text-slate-600">正常波動區間</span>
+      </div>
+      <div class="flex items-center gap-3 p-2.5 rounded-xl bg-orange-50">
+        <span class="w-2.5 h-2.5 rounded-full bg-orange-500 shrink-0"></span>
+        <strong class="text-orange-700 w-14 shrink-0">25 – 35</strong>
+        <span class="text-slate-600">市場恐慌，可留意布局機會</span>
+      </div>
+      <div class="flex items-center gap-3 p-2.5 rounded-xl bg-rose-50">
+        <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
+        <strong class="text-rose-700 w-14 shrink-0">&gt; 35</strong>
+        <span class="text-slate-600">極度恐慌，歷史性買點參考</span>
+      </div>
     </div>
-    <div class="mt-5 pt-4 border-t flex items-center justify-center gap-3">
+    <div class="mt-5 pt-4 border-t border-slate-100 flex items-center justify-center gap-6">
       <div class="text-center">
-        <div class="text-xs text-gray-500 mb-1">VIX（美）</div>
+        <div class="text-xs text-slate-400 mb-1 font-medium">VIX（美）</div>
         <div class="text-2xl font-extrabold text-blue-600" id="modalVix">–</div>
       </div>
-      <div class="text-gray-300 text-2xl">|</div>
+      <div class="w-px h-10 bg-slate-200"></div>
       <div class="text-center">
-        <div class="text-xs text-gray-500 mb-1">VIXTWN（台）</div>
+        <div class="text-xs text-slate-400 mb-1 font-medium">VIXTWN（台）</div>
         <div class="text-2xl font-extrabold text-purple-600" id="modalVixTwn">–</div>
       </div>
     </div>
-    <div class="text-center mt-2 text-xs text-gray-400" id="modalVixTime"></div>
+    <div class="text-center mt-2 text-xs text-slate-400" id="modalVixTime"></div>
   </div>
 </div>
 
@@ -671,14 +770,15 @@ function renderInsights() {
     const name  = item.name || STOCK_MAP[sid]?.name || sid;
     const ratio = item[buyRatioF] ?? item[sellRatioF] ?? 0;
     const isNew = newcomerIds.has(sid);
-    return `<div class="rank-row flex items-center px-4 py-2.5 transition-colors" onclick="loadStock('${sid}')">
-      <span class="text-gray-400 text-xs w-6 shrink-0">${rank}</span>
+    const mCls  = rank === 1 ? 'rm-1' : rank === 2 ? 'rm-2' : rank === 3 ? 'rm-3' : 'rm-n';
+    return `<div class="rank-row" onclick="loadStock('${sid}')">
+      <div class="rank-medal ${mCls}">${rank}</div>
       <div class="flex-1 flex items-center gap-2 min-w-0">
-        <span class="font-bold text-sm text-gray-800">${sid}</span>
-        <span class="text-gray-600 text-sm truncate">${name}</span>
-        ${isNew ? '<span class="shrink-0 bg-amber-100 text-amber-700 text-xs px-1.5 py-0.5 rounded font-bold badge-new">新進榜</span>' : ''}
+        <span class="font-bold text-sm text-slate-800 shrink-0">${sid}</span>
+        <span class="text-slate-500 text-sm truncate">${name}</span>
+        ${isNew ? '<span class="shrink-0 bg-amber-50 text-amber-600 border border-amber-200 text-xs px-2 py-0.5 rounded-full font-semibold badge-new">NEW</span>' : ''}
       </div>
-      <span class="font-bold text-sm shrink-0 ${isBuy ? 'text-red-600' : 'text-green-600'}">${ratio > 0 ? '+' : ''}${ratio}%</span>
+      <span class="font-bold text-sm shrink-0 ${isBuy ? 'text-rose-600' : 'text-emerald-600'}">${ratio > 0 ? '+' : ''}${ratio}%</span>
     </div>`;
   };
 
@@ -687,15 +787,15 @@ function renderInsights() {
 
   // Newcomers
   document.getElementById('newcomersList').innerHTML = NEWCOMERS.length
-    ? NEWCOMERS.map(n => `<span onclick="loadStock('${n.stock_id}')" class="cursor-pointer bg-amber-50 border border-amber-200 text-amber-800 px-3 py-1.5 rounded-lg text-sm hover:bg-amber-100 transition">
-        ${n.stock_id} ${n.name} <span class="text-amber-500">★</span></span>`).join('')
-    : '<span class="text-gray-400 text-sm">尚無資料</span>';
+    ? NEWCOMERS.map(n => `<span onclick="loadStock('${n.stock_id}')" class="cursor-pointer inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-full text-sm font-medium hover:bg-amber-100 transition">
+        <span class="text-amber-400 text-xs">★</span>${n.stock_id} ${n.name}</span>`).join('')
+    : '<span class="text-slate-400 text-sm">尚無資料</span>';
 
   // Explosive
   document.getElementById('explosiveList').innerHTML = EXPLOSIVE.length
-    ? EXPLOSIVE.map(e => `<span onclick="loadStock('${e.stock_id}')" class="cursor-pointer bg-red-50 border border-red-200 text-red-700 px-3 py-1.5 rounded-lg text-sm hover:bg-red-100 transition">
-        🔥 ${e.stock_id} ${e.name} <span class="text-xs ml-1">${e.ratio}x</span></span>`).join('')
-    : '<span class="text-gray-400 text-sm">尚無資料</span>';
+    ? EXPLOSIVE.map(e => `<span onclick="loadStock('${e.stock_id}')" class="cursor-pointer inline-flex items-center gap-1.5 bg-rose-50 border border-rose-200 text-rose-700 px-3 py-1.5 rounded-full text-sm font-medium hover:bg-rose-100 transition">
+        🔥 ${e.stock_id} ${e.name} <span class="bg-rose-200 text-rose-800 text-xs px-1.5 py-0.5 rounded-full font-bold">${e.ratio}x</span></span>`).join('')
+    : '<span class="text-slate-400 text-sm">尚無資料</span>';
 }
 
 // ═══════════════════════════════════════════════
@@ -881,16 +981,16 @@ function renderInstTable(id) {
     ? rows.map(f => {
         const tot = (f.foreign || 0) + (f.invest || 0) + (f.dealer || 0);
         const price = kmap[f.date] || f.close || '–';
-        return `<tr class="hover:bg-slate-50 text-xs">
-          <td class="px-4 py-2 text-gray-500">${f.date}</td>
-          <td class="px-4 py-2 text-right font-medium ${fc(f.foreign || 0)}">${fs(f.foreign || 0)}</td>
-          <td class="px-4 py-2 text-right font-medium ${fc(f.invest  || 0)}">${fs(f.invest  || 0)}</td>
-          <td class="px-4 py-2 text-right font-medium ${fc(f.dealer  || 0)}">${fs(f.dealer  || 0)}</td>
-          <td class="px-4 py-2 text-right font-bold   ${fc(tot)}">${fs(tot)}</td>
-          <td class="px-4 py-2 text-right text-gray-600">${typeof price === 'number' ? price.toLocaleString() : price}</td>
+        return `<tr class="hover:bg-slate-50 text-xs transition-colors">
+          <td class="px-4 py-2.5 text-slate-400 font-mono">${f.date}</td>
+          <td class="px-4 py-2.5 text-right font-semibold ${fc(f.foreign || 0)}">${fs(f.foreign || 0)}</td>
+          <td class="px-4 py-2.5 text-right font-semibold ${fc(f.invest  || 0)}">${fs(f.invest  || 0)}</td>
+          <td class="px-4 py-2.5 text-right font-semibold ${fc(f.dealer  || 0)}">${fs(f.dealer  || 0)}</td>
+          <td class="px-4 py-2.5 text-right font-bold ${fc(tot)}">${fs(tot)}</td>
+          <td class="px-4 py-2.5 text-right text-slate-600 font-medium">${typeof price === 'number' ? price.toLocaleString() : price}</td>
         </tr>`;
       }).join('')
-    : '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">尚無資料</td></tr>';
+    : '<tr><td colspan="6" class="px-4 py-10 text-center text-slate-400">尚無資料</td></tr>';
 }
 
 function toggleWatch() {
@@ -1065,20 +1165,20 @@ async function renderETF() {
   });
 
   body.innerHTML = sorted.map(h => `
-    <tr class="hover:bg-slate-50 cursor-pointer text-sm" onclick="loadStock('${h.stock_id}')">
+    <tr class="hover:bg-slate-50 cursor-pointer text-sm transition-colors" onclick="loadStock('${h.stock_id}')">
       <td class="px-4 py-2.5">
-        <div class="font-bold text-blue-700">${h.stock_id}</div>
-        <div class="text-xs text-gray-500">${h.name}</div>
+        <div class="font-bold text-blue-600 text-sm">${h.stock_id}</div>
+        <div class="text-xs text-slate-400 mt-0.5">${h.name}</div>
       </td>
-      <td class="px-4 py-2.5 text-right">${(h.shares || 0).toLocaleString()}</td>
-      <td class="px-4 py-2.5 text-right font-medium">${h.weight || 0}%</td>
-      <td class="px-4 py-2.5 text-right text-xs font-medium ${fc(h.change_10d || 0)}">${fs(h.change_10d || 0)}</td>
-      <td class="px-4 py-2.5 text-right text-xs font-medium ${fc(h.change_5d  || 0)}">${fs(h.change_5d  || 0)}</td>
-      <td class="px-4 py-2.5 text-right text-xs font-medium ${fc(h.change_3d  || 0)}">${fs(h.change_3d  || 0)}</td>
-      <td class="px-4 py-2.5 text-right text-xs font-medium ${fc(h.change_1d  || 0)}">${fs(h.change_1d  || 0)}</td>
+      <td class="px-4 py-2.5 text-right text-slate-600 font-medium">${(h.shares || 0).toLocaleString()}</td>
+      <td class="px-4 py-2.5 text-right font-bold text-slate-700">${h.weight || 0}%</td>
+      <td class="px-4 py-2.5 text-right text-xs font-semibold ${fc(h.change_10d || 0)}">${fs(h.change_10d || 0)}</td>
+      <td class="px-4 py-2.5 text-right text-xs font-semibold ${fc(h.change_5d  || 0)}">${fs(h.change_5d  || 0)}</td>
+      <td class="px-4 py-2.5 text-right text-xs font-semibold ${fc(h.change_3d  || 0)}">${fs(h.change_3d  || 0)}</td>
+      <td class="px-4 py-2.5 text-right text-xs font-semibold ${fc(h.change_1d  || 0)}">${fs(h.change_1d  || 0)}</td>
       <td class="px-4 py-2.5 text-center">
-        ${h.is_new ? '<span class="bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full font-bold">NEW</span>' : ''}
-        ${h.is_out ? '<span class="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full font-bold">OUT</span>' : ''}
+        ${h.is_new ? '<span class="bg-rose-50 text-rose-600 border border-rose-200 text-xs px-2 py-0.5 rounded-full font-bold">NEW</span>' : ''}
+        ${h.is_out ? '<span class="bg-slate-100 text-slate-400 border border-slate-200 text-xs px-2 py-0.5 rounded-full font-bold">OUT</span>' : ''}
       </td>
     </tr>`).join('');
 }
@@ -1110,14 +1210,14 @@ async function doReverse() {
     res.innerHTML = `<span class="text-gray-500 text-sm">${s.id} ${s.name} 未在掃描的 ETF 中持有</span>`;
     return;
   }
-  res.innerHTML = `<div class="mb-2 font-medium text-sm text-gray-700">${s.id} ${s.name} 被以下 ETF 持有：</div>
+  res.innerHTML = `<div class="mb-3 font-semibold text-sm text-slate-700">${s.id} ${s.name} 被以下 ETF 持有：</div>
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-      ${found.map(f => `<div class="border border-blue-200 rounded-xl p-3 bg-blue-50">
-        <div class="font-bold text-blue-700">${f.etfId}</div>
-        <div class="text-xs text-gray-500 mb-2">${f.etfName}</div>
-        <div class="text-sm">持股 <strong>${(f.shares || 0).toLocaleString()}</strong> 張</div>
-        <div class="text-sm">比重 <strong>${f.weight || 0}%</strong></div>
-        <div class="text-xs ${fc(f.change_1d || 0)} mt-1">1日: ${fs(f.change_1d || 0)}</div>
+      ${found.map(f => `<div class="rounded-xl p-4 border border-blue-100" style="background:#f0f6ff">
+        <div class="font-bold text-blue-600 text-sm">${f.etfId}</div>
+        <div class="text-xs text-slate-400 mb-3 mt-0.5">${f.etfName}</div>
+        <div class="text-sm text-slate-600">持股 <strong class="text-slate-800">${(f.shares || 0).toLocaleString()}</strong> 張</div>
+        <div class="text-sm text-slate-600 mt-1">比重 <strong class="text-slate-800">${f.weight || 0}%</strong></div>
+        <div class="text-xs font-semibold ${fc(f.change_1d || 0)} mt-2">1日變化: ${fs(f.change_1d || 0)}</div>
       </div>`).join('')}
     </div>`;
 }
@@ -1151,9 +1251,9 @@ function initSearch() {
     if (!hits.length) { lst.classList.add('hidden'); return; }
     lst.innerHTML = hits.map(s => `
       <div class="autocomplete-item" onclick="loadStock('${s.id}');document.getElementById('autocomplete').classList.add('hidden')">
-        <span class="font-bold text-blue-700 text-sm w-12 shrink-0">${s.id}</span>
-        <span class="text-gray-700 text-sm">${s.name}</span>
-        <span class="text-gray-400 text-xs ml-auto">${s.sector}</span>
+        <span class="font-bold text-blue-600 text-sm w-12 shrink-0">${s.id}</span>
+        <span class="text-slate-700 text-sm font-medium">${s.name}</span>
+        <span class="text-slate-400 text-xs ml-auto bg-slate-100 px-2 py-0.5 rounded-full">${s.sector}</span>
       </div>`).join('');
     lst.classList.remove('hidden');
   });
