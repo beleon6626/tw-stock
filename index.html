@@ -580,9 +580,6 @@ async function loadAllData() {
   setLoadingMsg('載入法人買賣超…');
   DATA     = (await safeFetch('data.json'))     || {};
 
-  setLoadingMsg('載入 K 線資料…');
-  KLINE    = (await safeFetch('Kline.json'))    || {};
-
   setLoadingMsg('載入排行榜…');
   INSIGHTS = (await safeFetch('insights.json')) || {};
 
@@ -920,6 +917,21 @@ async function renderStockCharts(id) {
     kd = await fetchKlineDynamic(id);
     if (kd.length) {
       KLINE[id] = kd;
+      // 補更新股價顯示（loadStock 時 KLINE 尚未抓到）
+      if (kd.length >= 2) {
+        const last = kd[kd.length - 1], prev = kd[kd.length - 2];
+        const chg  = +(last.close - prev.close).toFixed(2);
+        const pct  = +(chg / prev.close * 100).toFixed(2);
+        const priceEl = document.getElementById('sPrice');
+        priceEl.textContent = last.close.toLocaleString();
+        priceEl.className   = `text-3xl font-extrabold ${fc(chg)}`;
+        const chgEl = document.getElementById('sChg');
+        chgEl.textContent = (chg >= 0 ? '+' : '') + chg;
+        chgEl.className   = `text-xl ${fc(chg)}`;
+        const pctEl = document.getElementById('sChgPct');
+        pctEl.textContent = `(${chg >= 0 ? '+' : ''}${pct}%)`;
+        pctEl.className   = `text-base ${fc(chg)}`;
+      }
     } else {
       document.getElementById('klineChart').innerHTML =
         '<div class="flex items-center justify-center h-full text-slate-400 text-sm">查無此股票 K 線資料（可能為上櫃或下市股）</div>';
