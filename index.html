@@ -801,6 +801,43 @@ function renderInsights() {
 // ═══════════════════════════════════════════════
 //  TAB 2: 個股查詢
 // ═══════════════════════════════════════════════
+
+// 動態從 Yahoo Finance 抓 K 線（Kline.json 未涵蓋的股票）
+async function fetchKlineDynamic(stockId) {
+  const exch = INDUSTRY[stockId]?.exchange;
+  const tries = exch === 'TWO' ? ['TWO', 'TW'] : ['TW', 'TWO'];
+  for (const suffix of tries) {
+    try {
+      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${stockId}.${suffix}?interval=1d&range=6mo`;
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const j = await r.json();
+      const res = j?.chart?.result?.[0];
+      if (!res?.timestamp?.length) continue;
+      const ts = res.timestamp;
+      const q  = res.indicators.quote[0];
+      const rows = [];
+      for (let i = 0; i < ts.length; i++) {
+        const c = q.close[i];
+        if (!c || isNaN(c)) continue;
+        // 加 8 小時轉台灣時間，取日期
+        const d = new Date((ts[i] + 28800) * 1000);
+        const date = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+        rows.push({
+          time:   date,
+          open:   +((q.open[i]   || c).toFixed(2)),
+          high:   +((q.high[i]   || c).toFixed(2)),
+          low:    +((q.low[i]    || c).toFixed(2)),
+          close:  +(c.toFixed(2)),
+          volume: Math.round((q.volume[i] || 0) / 1000),
+        });
+      }
+      if (rows.length) return rows.sort((a, b) => a.time < b.time ? -1 : 1);
+    } catch { /* 嘗試下一個後綴 */ }
+  }
+  return [];
+}
+
 function loadStock(id) {
   const s = STOCK_MAP[id];
   if (!s) { toast(`找不到股票 ${id}`); return; }
@@ -872,13 +909,24 @@ function loadStock(id) {
   requestAnimationFrame(() => { renderStockCharts(id); renderInstTable(id); });
 }
 
-function renderStockCharts(id) {
+async function renderStockCharts(id) {
   let kd = KLINE[id] || [];
   if (!kd.length) {
-    ['klineChart', 'kdChart'].forEach(eid => {
-      document.getElementById(eid).innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-sm">尚無 K 線資料</div>';
-    });
-    return;
+    document.getElementById('klineChart').innerHTML =
+      '<div class="flex flex-col items-center justify-center h-full gap-3 text-slate-400">' +
+      '<div class="loader-ring" style="width:28px;height:28px;border-width:2px"></div>' +
+      '<span class="text-sm">即時抓取 K 線資料…</span></div>';
+    document.getElementById('kdChart').innerHTML = '';
+    kd = await fetchKlineDynamic(id);
+    if (kd.length) {
+      KLINE[id] = kd;
+    } else {
+      document.getElementById('klineChart').innerHTML =
+        '<div class="flex items-center justify-center h-full text-slate-400 text-sm">查無此股票 K 線資料（可能為上櫃或下市股）</div>';
+      document.getElementById('kdChart').innerHTML =
+        '<div class="flex items-center justify-center h-full text-slate-400 text-sm">–</div>';
+      return;
+    }
   }
 
   if (curCp === 'W') kd = aggKline(kd, 'W');
