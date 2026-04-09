@@ -1,9 +1,9 @@
 name: 每日更新台股籌碼資料
 
 on:
-  # 台灣時間每天 22:00（UTC 14:00），週一到週五收盤後執行
+  # 台灣時間每天 15:30（UTC 07:30），週一到週五收盤後執行
   schedule:
-    - cron: '0 14 * * 1-5'
+    - cron: '30 7 * * 1-5'
 
   # 也可以手動在 GitHub Actions 頁面觸發
   workflow_dispatch:
