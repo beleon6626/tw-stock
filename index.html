@@ -800,8 +800,8 @@ function renderInsights() {
 //  TAB 2: 個股查詢
 // ═══════════════════════════════════════════════
 
-// 動態從 Yahoo Finance 抓 K 線（Kline.json 未涵蓋的股票）
-async function getTpexChineseName(stockId) {
+// 上櫃/興櫃股中文名查詢（lazy load，session 快取）
+const getTpexChineseName = async (stockId) => {
   if (!TPEX_NAMES) {
     try {
       const target = 'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes';
@@ -809,10 +809,10 @@ async function getTpexChineseName(stockId) {
       const j = await r.json();
       TPEX_NAMES = {};
       j.forEach(s => { if (s.SecuritiesCompanyCode) TPEX_NAMES[s.SecuritiesCompanyCode] = s.CompanyName; });
-    } catch { TPEX_NAMES = {}; }
+    } catch(e) { TPEX_NAMES = {}; }
   }
   return TPEX_NAMES[stockId] || '';
-}
+};
 
 async function fetchKlineDynamic(stockId) {
   const exch = INDUSTRY[stockId]?.exchange;
