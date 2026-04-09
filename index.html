@@ -837,8 +837,8 @@ async function fetchKlineDynamic(stockId) {
 }
 
 function loadStock(id) {
-  const s = STOCK_MAP[id];
-  if (!s) { toast(`找不到股票 ${id}`); return; }
+  // 允許查詢任何股票代號（上市/上櫃），不在 STOCK_MAP 時用 ID 當暫時名稱
+  const s = STOCK_MAP[id] || { id, name: id, sector: '' };
 
   switchTab('stock');
   curStock = id;
@@ -1304,18 +1304,38 @@ function initSearch() {
   const lst = document.getElementById('autocomplete');
   const clr = document.getElementById('searchClear');
 
+  function doSearch(raw) {
+    const v = raw.trim();
+    if (!v) return;
+    // 擷取第一段（代號 或 名稱前可能帶空格）
+    const id = v.split(/\s+/)[0];
+    lst.classList.add('hidden');
+    loadStock(id);
+  }
+
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doSearch(inp.value); }
+  });
+
   inp.addEventListener('input', () => {
     const v = inp.value.trim();
     clr.classList.toggle('hidden', !v);
     if (!v) { lst.classList.add('hidden'); return; }
     const hits = STOCKS.filter(s => s.id.startsWith(v) || s.name.includes(v)).slice(0, 8);
-    if (!hits.length) { lst.classList.add('hidden'); return; }
+    // 若有完全符合的代號就不顯示「直接搜尋」
+    const exactMatch = hits.some(s => s.id === v);
+    const directItem = (!exactMatch && /^\d{4,6}$/.test(v))
+      ? `<div class="autocomplete-item" onclick="loadStock('${v}');document.getElementById('autocomplete').classList.add('hidden')">
+           <span class="font-bold text-blue-600 text-sm w-12 shrink-0">${v}</span>
+           <span class="text-slate-500 text-sm">直接查詢此代號</span>
+         </div>` : '';
+    if (!hits.length && !directItem) { lst.classList.add('hidden'); return; }
     lst.innerHTML = hits.map(s => `
       <div class="autocomplete-item" onclick="loadStock('${s.id}');document.getElementById('autocomplete').classList.add('hidden')">
         <span class="font-bold text-blue-600 text-sm w-12 shrink-0">${s.id}</span>
         <span class="text-slate-700 text-sm font-medium">${s.name}</span>
         <span class="text-slate-400 text-xs ml-auto bg-slate-100 px-2 py-0.5 rounded-full">${s.sector}</span>
-      </div>`).join('');
+      </div>`).join('') + directItem;
     lst.classList.remove('hidden');
   });
 
