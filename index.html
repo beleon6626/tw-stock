@@ -877,10 +877,10 @@ function loadStock(id) {
     });
   }
 
-  document.getElementById('sName').textContent   = s.name;
+  document.getElementById('sName').textContent   = s.name === id ? '載入中…' : s.name;
   document.getElementById('sId').textContent     = s.id;
   document.getElementById('sSector').textContent = s.sector;
-  document.getElementById('searchInput').value   = `${s.id}  ${s.name}`;
+  document.getElementById('searchInput').value   = s.name === id ? s.id : `${s.id}  ${s.name}`;
   document.getElementById('searchClear').classList.remove('hidden');
 
   // 連續買賣天數
@@ -897,10 +897,14 @@ function loadStock(id) {
   consEl.className   = `text-lg font-bold ${cons > 0 ? 'text-red-600' : 'text-green-600'}`;
 
   [3, 5, 10].forEach(n => {
-    const tot = fl.slice(-n).reduce((a, b) => a + (b.foreign || 0) + (b.invest || 0) + (b.dealer || 0), 0);
-    const el  = document.getElementById(`stat${n}d`);
-    el.textContent = fs(tot) + '張';
-    el.className   = `text-lg font-bold ${fc(tot)}`;
+    const el = document.getElementById(`stat${n}d`);
+    if (!fl.length) {
+      el.textContent = '無資料'; el.className = 'text-lg font-bold text-slate-300';
+    } else {
+      const tot = fl.slice(-n).reduce((a, b) => a + (b.foreign || 0) + (b.invest || 0) + (b.dealer || 0), 0);
+      el.textContent = fs(tot) + '張';
+      el.className   = `text-lg font-bold ${fc(tot)}`;
+    }
   });
 
   // 觀察清單按鈕
@@ -933,6 +937,7 @@ async function renderStockCharts(id) {
           STOCK_MAP[id] = { id, name: yName, sector: kd._meta.exchange === 'TWO' ? '上櫃' : '上市' };
           document.getElementById('sName').textContent   = yName;
           document.getElementById('sSector').textContent = STOCK_MAP[id].sector;
+          document.getElementById('searchInput').value   = `${id}  ${yName}`;
         }
       }
       // 補更新股價顯示（loadStock 時 KLINE 尚未抓到）
