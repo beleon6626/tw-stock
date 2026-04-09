@@ -801,6 +801,7 @@ function renderInsights() {
 // ═══════════════════════════════════════════════
 
 // 上櫃/興櫃股中文名查詢（lazy load，session 快取）
+// 先載入 TPEX 上櫃全量，找不到再 fallback 到 ISIN 逐股查詢（涵蓋興櫃）
 const getTpexChineseName = async (stockId) => {
   if (!TPEX_NAMES) {
     try {
@@ -811,7 +812,21 @@ const getTpexChineseName = async (stockId) => {
       j.forEach(s => { if (s.SecuritiesCompanyCode) TPEX_NAMES[s.SecuritiesCompanyCode] = s.CompanyName; });
     } catch(e) { TPEX_NAMES = {}; }
   }
-  return TPEX_NAMES[stockId] || '';
+  if (TPEX_NAMES[stockId]) return TPEX_NAMES[stockId];
+  // Fallback: ISIN 逐股查詢（支援興櫃，Big5 HTML）
+  try {
+    const isinUrl = `https://isin.twse.com.tw/isin/single_main.jsp?owncode=${stockId}`;
+    const r2 = await fetch('https://corsproxy.io/?' + encodeURIComponent(isinUrl));
+    const buf = await r2.arrayBuffer();
+    const text = new TextDecoder('big5').decode(buf);
+    const tds = [...text.matchAll(/<td[^>]*>([^<]{1,50})<\/td>/g)].map(m => m[1].trim());
+    const idx = tds.indexOf(stockId);
+    if (idx >= 0 && tds[idx + 1]) {
+      TPEX_NAMES[stockId] = tds[idx + 1];
+      return tds[idx + 1];
+    }
+  } catch(e) {}
+  return '';
 };
 
 async function fetchKlineDynamic(stockId) {
