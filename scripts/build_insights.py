@@ -105,10 +105,13 @@ def build_insights():
         """
         positive=True  → 買超排行（net > 0）
         positive=False → 賣超排行（net < 0）
+        排除：ETF（代碼開頭為 0）、無 K 線資料（volume=0）
         """
         filtered = [
             s for s in stats
             if (s[net_key] > 0 if positive else s[net_key] < 0)
+            and s[vol_key] > 0                        # 需有成交量（K 線資料）
+            and not s["stock_id"].startswith("0")     # 排除 ETF（0050/006201 等）
         ]
         # 依絕對值大小排序
         filtered.sort(key=lambda s: abs(s[net_key]), reverse=True)
