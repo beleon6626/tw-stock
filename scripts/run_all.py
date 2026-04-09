@@ -24,12 +24,13 @@ from datetime import datetime
 # 讓子模組找得到 config.py
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fetch_institutional import update_data
-from fetch_kline         import update_klines
-from fetch_market        import update_market
-from fetch_vix           import update_vix
-from fetch_etf           import update_etfs
-from build_insights      import build_insights
+from fetch_institutional  import update_data
+from fetch_kline          import update_klines
+from fetch_daily_prices   import update_prices
+from fetch_market         import update_market
+from fetch_vix            import update_vix
+from fetch_etf            import update_etfs
+from build_insights       import build_insights
 
 
 def run_step(label: str, fn, *args, **kwargs):
@@ -59,12 +60,13 @@ def main():
     days_back = 30 if is_init else 5
 
     steps = [
-        ("1/6  三大法人買賣超 (TWSE T86)",    update_data,      {"days_back": days_back}),
-        ("2/6  個股 K 線 (yfinance)",          update_klines,    {}),
-        ("3/6  大盤資料 (TWSE / TAIFEX)",      update_market,    {"days_back": days_back}),
-        ("4/6  VIX 恐慌指數 (Yahoo Finance)", update_vix,       {}),
-        ("5/6  ETF 成分股 (FinMind)",          update_etfs,      {}),
-        ("6/6  建立排行榜 / newcomers",        build_insights,   {}),
+        ("1/7  三大法人買賣超 (TWSE T86 + TPEX)", update_data,      {"days_back": days_back}),
+        ("2/7  個股 K 線 (yfinance)",              update_klines,    {}),
+        ("3/7  全市場收盤價/成交量 (TWSE+TPEX)",   update_prices,    {}),
+        ("4/7  大盤資料 (TWSE / TAIFEX)",          update_market,    {"days_back": days_back}),
+        ("5/7  VIX 恐慌指數 (Yahoo Finance)",      update_vix,       {}),
+        ("6/7  ETF 成分股 (FinMind)",              update_etfs,      {}),
+        ("7/7  建立排行榜 / newcomers",            build_insights,   {}),
     ]
 
     for label, fn, kwargs in steps:
