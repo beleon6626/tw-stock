@@ -113,8 +113,8 @@ def build_insights():
             and s[vol_key] > 0                        # 需有成交量（K 線資料）
             and not s["stock_id"].startswith("0")     # 排除 ETF（0050/006201 等）
         ]
-        # 依絕對值大小排序
-        filtered.sort(key=lambda s: abs(s[net_key]), reverse=True)
+        # 依比例大小排序（外資買賣超 / 成交量）
+        filtered.sort(key=lambda s: abs(safe_ratio(s[net_key], s[vol_key])), reverse=True)
         filtered = filtered[:TOP_N]
 
         result = []
