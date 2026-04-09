@@ -105,12 +105,12 @@ def build_insights():
         """
         positive=True  → 買超排行（net > 0）
         positive=False → 賣超排行（net < 0）
-        排除：ETF（代碼開頭為 0）、無 K 線資料（volume=0）
+        排除：ETF（代碼開頭為 0）、無 K 線資料（volume=0）、低流動性（< 100 張）
         """
         filtered = [
             s for s in stats
             if (s[net_key] > 0 if positive else s[net_key] < 0)
-            and s[vol_key] > 0                        # 需有成交量（K 線資料）
+            and s[vol_key] >= 100                     # 最低 100 張成交量，過濾低流動性
             and not s["stock_id"].startswith("0")     # 排除 ETF（0050/006201 等）
         ]
         # 依比例大小排序（外資買賣超 / 成交量）
