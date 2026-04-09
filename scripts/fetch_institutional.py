@@ -36,7 +36,12 @@ from config import OUT_DIR, HEADERS, TWSE_DELAY, HISTORY_DAYS
 DATA_FILE     = os.path.join(OUT_DIR, "data.json")
 INDUSTRY_FILE = os.path.join(OUT_DIR, "industry_tags.json")
 
-T86_URL = "https://www.twse.com.tw/fund/T86"
+T86_URL  = "https://www.twse.com.tw/fund/T86"
+TPEX_URL = "https://www.tpex.org.tw/web/stock/3insti/daily_trade/3itrade_hedge_result.php"
+TPEX_HEADERS = {**HEADERS,
+    "Referer": "https://www.tpex.org.tw/web/stock/3insti/daily_trade/3itrade_hedge.php?l=zh-tw",
+    "X-Requested-With": "XMLHttpRequest",
+}
 
 
 # ── 工具函式 ──────────────────────────────────────────────────────────────
@@ -109,6 +114,52 @@ def fetch_t86_one_day(date_str: str) -> dict | None:
         return None
 
 
+def fetch_tpex_one_day(date_str: str) -> dict | None:
+    """
+    抓取單日 TPEX 上櫃三大法人資料。
+    日期格式 YYYYMMDD → 轉為民國年 MMM/DD/DD 送給 TPEX API。
+    回傳 {stock_id: {name, foreign, invest, dealer}} 或 None。
+    欄位：[0]=代號, [1]=名稱, [4]=外資買賣超, [7]=投信買賣超, [10]=自營商買賣超
+    """
+    # 轉民國年：YYYY-MM-DD → MMM/MM/DD
+    roc_year = int(date_str[:4]) - 1911
+    roc_date = f"{roc_year}/{date_str[4:6]}/{date_str[6:]}"
+
+    params = {"l": "zh-tw", "t": "D", "d": roc_date, "s": "0,asc", "o": "json"}
+    try:
+        resp = requests.get(TPEX_URL, params=params, headers=TPEX_HEADERS, timeout=20)
+        resp.raise_for_status()
+        j = resp.json()
+
+        tables = j.get("tables") or []
+        data_rows = tables[0].get("data", []) if tables else []
+        if not data_rows:
+            print(f"    TPEX {date_str}: 無資料")
+            return None
+
+        result = {}
+        for row in data_rows:
+            sid = str(row[0]).strip()
+            if not sid.isdigit():
+                continue
+            result[sid] = {
+                "name":    str(row[1]).strip(),
+                "foreign": parse_num(row[4]),   # 外資買賣超（張）
+                "invest":  parse_num(row[7]),   # 投信買賣超（張）
+                "dealer":  parse_num(row[10]),  # 自營商合計買賣超（張）
+            }
+
+        print(f"    TPEX {date_str}: OK ({len(result)} 支股票)")
+        return result
+
+    except requests.exceptions.RequestException as e:
+        print(f"    TPEX {date_str} 網路錯誤: {e}")
+        return None
+    except Exception as e:
+        print(f"    TPEX {date_str} 解析錯誤: {e}")
+        return None
+
+
 # ── 主流程 ────────────────────────────────────────────────────────────────
 
 def load_existing_data() -> dict:
@@ -150,9 +201,17 @@ def update_data(days_back: int = 5):
             print(f"    {date_str}: 已存在，跳過")
             continue
 
+        # 抓 TWSE 上市
         day_data = fetch_t86_one_day(date_str)
+        time.sleep(TWSE_DELAY)
+
+        # 抓 TPEX 上櫃，合併進同一個字典
+        tpex_data = fetch_tpex_one_day(date_str)
+        if tpex_data:
+            day_data = {**(day_data or {}), **tpex_data}
+        time.sleep(TWSE_DELAY)
+
         if not day_data:
-            time.sleep(TWSE_DELAY)
             continue
 
         for sid, vals in day_data.items():
