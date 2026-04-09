@@ -543,6 +543,7 @@ let ETF_CACHE = {};   // {etfId: holdings[]}
 let INDUSTRY  = {};   // industry_tags.json
 let STOCKS    = [];   // [{id, name, sector}]  built from DATA
 let STOCK_MAP = {};   // {id: {id, name, sector}}
+let TPEX_NAMES = null; // 上櫃股中文名快取（lazy loaded）
 
 // ── 狀態 ──
 let curTab    = 'insights';
@@ -800,6 +801,19 @@ function renderInsights() {
 // ═══════════════════════════════════════════════
 
 // 動態從 Yahoo Finance 抓 K 線（Kline.json 未涵蓋的股票）
+async function getTpexChineseName(stockId) {
+  if (!TPEX_NAMES) {
+    try {
+      const target = 'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes';
+      const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(target));
+      const j = await r.json();
+      TPEX_NAMES = {};
+      j.forEach(s => { if (s.SecuritiesCompanyCode) TPEX_NAMES[s.SecuritiesCompanyCode] = s.CompanyName; });
+    } catch { TPEX_NAMES = {}; }
+  }
+  return TPEX_NAMES[stockId] || '';
+}
+
 async function fetchKlineDynamic(stockId) {
   const exch = INDUSTRY[stockId]?.exchange;
   const tries = exch === 'TWO' ? ['TWO', 'TW'] : ['TW', 'TWO'];
@@ -931,14 +945,17 @@ async function renderStockCharts(id) {
     if (kd.length) {
       KLINE[id] = kd;
       // 若股票不在 STOCK_MAP，用 Yahoo 回傳的名稱補全
-      if (kd._meta?.name && (!STOCK_MAP[id] || STOCK_MAP[id].name === id)) {
-        const yName = kd._meta.name.replace(/\s*\(.*?\)\s*/g, '').trim();
-        if (yName) {
-          STOCK_MAP[id] = { id, name: yName, sector: kd._meta.exchange === 'TWO' ? '上櫃' : '上市' };
-          document.getElementById('sName').textContent   = yName;
-          document.getElementById('sSector').textContent = STOCK_MAP[id].sector;
-          document.getElementById('searchInput').value   = `${id}  ${yName}`;
+      if (!STOCK_MAP[id] || STOCK_MAP[id].name === id) {
+        const isOtc = kd._meta?.exchange === 'TWO';
+        let displayName = kd._meta?.name?.replace(/\s*\(.*?\)\s*/g, '').trim() || id;
+        if (isOtc) {
+          const cnName = await getTpexChineseName(id);
+          if (cnName) displayName = cnName;
         }
+        STOCK_MAP[id] = { id, name: displayName, sector: isOtc ? '上櫃' : '上市' };
+        document.getElementById('sName').textContent   = displayName;
+        document.getElementById('sSector').textContent = STOCK_MAP[id].sector;
+        document.getElementById('searchInput').value   = `${id}  ${displayName}`;
       }
       // 補更新股價顯示（loadStock 時 KLINE 尚未抓到）
       if (kd.length >= 2) {
