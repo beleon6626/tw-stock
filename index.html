@@ -812,13 +812,13 @@ async function fetchKlineDynamic(stockId) {
       const j = await r.json();
       const res = j?.chart?.result?.[0];
       if (!res?.timestamp?.length) continue;
-      const ts = res.timestamp;
-      const q  = res.indicators.quote[0];
+      const ts   = res.timestamp;
+      const q    = res.indicators.quote[0];
+      const meta = res.meta || {};
       const rows = [];
       for (let i = 0; i < ts.length; i++) {
         const c = q.close[i];
         if (!c || isNaN(c)) continue;
-        // 加 8 小時轉台灣時間，取日期
         const d = new Date((ts[i] + 28800) * 1000);
         const date = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
         rows.push({
@@ -830,7 +830,15 @@ async function fetchKlineDynamic(stockId) {
           volume: Math.round((q.volume[i] || 0) / 1000),
         });
       }
-      if (rows.length) return rows.sort((a, b) => a.time < b.time ? -1 : 1);
+      if (rows.length) {
+        rows.sort((a, b) => a.time < b.time ? -1 : 1);
+        // 附帶回傳 Yahoo 提供的股票名稱與交易所
+        rows._meta = {
+          name:     meta.longName || meta.shortName || '',
+          exchange: suffix,
+        };
+        return rows;
+      }
     } catch { /* 嘗試下一個後綴 */ }
   }
   return [];
@@ -918,6 +926,15 @@ async function renderStockCharts(id) {
     kd = await fetchKlineDynamic(id);
     if (kd.length) {
       KLINE[id] = kd;
+      // 若股票不在 STOCK_MAP，用 Yahoo 回傳的名稱補全
+      if (kd._meta?.name && (!STOCK_MAP[id] || STOCK_MAP[id].name === id)) {
+        const yName = kd._meta.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+        if (yName) {
+          STOCK_MAP[id] = { id, name: yName, sector: kd._meta.exchange === 'TWO' ? '上櫃' : '上市' };
+          document.getElementById('sName').textContent   = yName;
+          document.getElementById('sSector').textContent = STOCK_MAP[id].sector;
+        }
+      }
       // 補更新股價顯示（loadStock 時 KLINE 尚未抓到）
       if (kd.length >= 2) {
         const last = kd[kd.length - 1], prev = kd[kd.length - 2];
