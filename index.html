@@ -543,7 +543,8 @@ let ETF_CACHE = {};   // {etfId: holdings[]}
 let INDUSTRY  = {};   // industry_tags.json
 let STOCKS    = [];   // [{id, name, sector}]  built from DATA
 let STOCK_MAP = {};   // {id: {id, name, sector}}
-let TPEX_NAMES = null; // 上櫃股中文名快取（lazy loaded）
+let TPEX_NAMES   = null; // 上櫃股中文名快取（lazy loaded）
+let EMERGING_IDS = new Set(); // 興櫃股代號集合（由 ISIN fallback 識別）
 
 // ── 狀態 ──
 let curTab    = 'insights';
@@ -823,6 +824,9 @@ const getTpexChineseName = async (stockId) => {
     const idx = tds.indexOf(stockId);
     if (idx >= 0 && tds[idx + 1]) {
       TPEX_NAMES[stockId] = tds[idx + 1];
+      // ISIN 表格第 idx+4 欄為市場別（興櫃/上市/上櫃）
+      const marketType = tds[idx + 4] || '';
+      if (marketType.includes('興櫃')) EMERGING_IDS.add(stockId);
       return tds[idx + 1];
     }
   } catch(e) {}
@@ -967,7 +971,8 @@ async function renderStockCharts(id) {
           const cnName = await getTpexChineseName(id);
           if (cnName) displayName = cnName;
         }
-        STOCK_MAP[id] = { id, name: displayName, sector: isOtc ? '上櫃' : '上市' };
+        const market = EMERGING_IDS.has(id) ? '興櫃' : (isOtc ? '上櫃' : '上市');
+        STOCK_MAP[id] = { id, name: displayName, sector: market };
         document.getElementById('sName').textContent   = displayName;
         document.getElementById('sSector').textContent = STOCK_MAP[id].sector;
         document.getElementById('searchInput').value   = `${id}  ${displayName}`;
